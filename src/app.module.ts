@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RestaurantModule } from './modules/restaurant/restaurant.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { AppService } from './app.service';
         synchronize: true, // Tắt khi production
       }),
     }),
+    RestaurantModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
