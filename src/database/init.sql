@@ -279,7 +279,7 @@ INSERT INTO users (full_name, email, password, phone, role, is_active)
 VALUES (
   'Lê Trường',
   'nhatzonz@gmail.com',
-  '$2a$10$8KzaNdKIMyOkASCBFOBbLu5Y76tRh3MRmVFBsNY3r2VhMJBbCNjWe',
+  '$2b$10$voE7aD3lt0jR.m7Kh1vpludbgxs.4fDUIIU.5R.BoJ14mePgHQeQa',
   '0386522328',
   'admin',
   1
