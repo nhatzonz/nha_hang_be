@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Table } from '../tables/table.entity';
+import { Customer } from '../customers/customer.entity';
 
 @Entity('reservations')
 export class Reservation {
@@ -25,6 +26,9 @@ export class Reservation {
 
   @Column({ nullable: true })
   table_id: number;
+
+  @Column({ nullable: true })
+  customer_id: number;
 
   @Column({ type: 'date' })
   reservation_date: string;
@@ -54,4 +58,8 @@ export class Reservation {
   @ManyToOne(() => Table, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'table_id' })
   table: Table;
+
+  @ManyToOne(() => Customer, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'customer_id' })
+  customer: Customer;
 }

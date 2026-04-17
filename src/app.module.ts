@@ -15,6 +15,8 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { ChatbotModule } from './modules/chatbot/chatbot.module';
+import { ReservationsModule } from './modules/reservations/reservations.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { ReportsModule } from './modules/reports/reports.module';
     OrdersModule,
     StatisticsModule,
     ReportsModule,
+    ChatbotModule,
+    ReservationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

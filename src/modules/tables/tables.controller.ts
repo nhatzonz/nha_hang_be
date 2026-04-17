@@ -23,8 +23,11 @@ export class TablesController {
   constructor(private readonly tablesService: TablesService) {}
 
   @Get()
-  findAll(@Query('status') status?: string) {
-    return this.tablesService.findAll(status);
+  findAll(
+    @Query('status') status?: string,
+    @Query('include_upcoming') includeUpcoming?: string,
+  ) {
+    return this.tablesService.findAll(status, includeUpcoming === '1' || includeUpcoming === 'true');
   }
 
   @Get(':id')

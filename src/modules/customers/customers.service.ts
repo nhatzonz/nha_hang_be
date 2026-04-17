@@ -46,6 +46,16 @@ export class CustomersService {
     return customer;
   }
 
+  /**
+   * Tìm chính xác khách theo SĐT (unique lookup).
+   * Trả null nếu không có — không throw.
+   */
+  async findByPhone(phone: string) {
+    if (!phone) return null;
+    const customer = await this.customerRepo.findOne({ where: { phone } });
+    return customer || null;
+  }
+
   async create(dto: CreateCustomerDto) {
     const customer = this.customerRepo.create(dto);
     return this.customerRepo.save(customer);

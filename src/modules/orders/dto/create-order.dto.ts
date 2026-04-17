@@ -38,6 +38,11 @@ export class CreateOrderDto {
   @IsInt()
   customer_id?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  reservation_id?: number;
+
   @IsArray()
   @ArrayMinSize(1, { message: 'Đơn phải có ít nhất 1 món' })
   @ValidateNested({ each: true })

@@ -11,6 +11,7 @@ import { OrderDetail } from './order-detail.entity';
 import { Table } from '../tables/table.entity';
 import { Customer } from '../customers/customer.entity';
 import { MenuItem } from '../menu/menu-item.entity';
+import { Reservation } from '../reservations/reservation.entity';
 import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
@@ -156,8 +157,21 @@ export class OrdersService {
       // 1. Kiểm tra bàn tồn tại và đang available
       const table = await manager.findOne(Table, { where: { id: dto.table_id } });
       if (!table) throw new NotFoundException('Không tìm thấy bàn');
-      if (table.status === 'occupied') {
-        throw new ConflictException(`Bàn "${table.name}" đang có khách`);
+
+      // Check active order thay vì table.status — vì bàn có thể occupied do reservation completed
+      // mà chưa có order nào (staff sắp tạo ngay)
+      const activeOrder = await manager
+        .createQueryBuilder(Order, 'o')
+        .where('o.table_id = :tid', { tid: table.id })
+        .andWhere('o.status IN (:...statuses)', {
+          statuses: ['pending', 'preparing', 'served'],
+        })
+        .getOne();
+
+      if (activeOrder) {
+        throw new ConflictException(
+          `Bàn "${table.name}" đang có đơn ${activeOrder.order_code} chưa hoàn thành`,
+        );
       }
 
       // 2. Kiểm tra khách (nếu có)
@@ -194,6 +208,18 @@ export class OrdersService {
 
       // 6. Cập nhật bàn sang occupied
       await manager.update(Table, table.id, { status: 'occupied' });
+
+      // 7. Nếu đơn này được tạo từ reservation (khách đặt bàn đã đến)
+      // → đánh dấu reservation completed (atomic trong cùng transaction)
+      if (dto.reservation_id) {
+        const reservation = await manager.findOne(Reservation, {
+          where: { id: dto.reservation_id },
+        });
+        if (reservation && reservation.status !== 'completed' && reservation.status !== 'cancelled') {
+          reservation.status = 'completed';
+          await manager.save(reservation);
+        }
+      }
 
       return savedOrder.id;
     });
