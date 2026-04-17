@@ -1,15 +1,27 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CategoriesModule } from './modules/menu/categories.module';
+import { MenuModule } from './modules/menu/menu.module';
+import { TablesModule } from './modules/tables/tables.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { OrdersModule } from './modules/orders/orders.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -27,6 +39,12 @@ import { AuthModule } from './modules/auth/auth.module';
     }),
     RestaurantModule,
     AuthModule,
+    UsersModule,
+    CategoriesModule,
+    MenuModule,
+    TablesModule,
+    CustomersModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
