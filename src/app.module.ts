@@ -17,6 +17,7 @@ import { StatisticsModule } from './modules/statistics/statistics.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { BankAccountsModule } from './modules/bank/bank-accounts.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
     ReportsModule,
     ChatbotModule,
     ReservationsModule,
+    BankAccountsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
