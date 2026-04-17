@@ -13,6 +13,8 @@ import { MenuModule } from './modules/menu/menu.module';
 import { TablesModule } from './modules/tables/tables.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { StatisticsModule } from './modules/statistics/statistics.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { OrdersModule } from './modules/orders/orders.module';
     TablesModule,
     CustomersModule,
     OrdersModule,
+    StatisticsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
