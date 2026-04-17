@@ -54,7 +54,9 @@ export const INTENTS: IntentDef[] = [
   },
   {
     name: 'greeting',
-    keywords: ['xinchao', 'hello', 'hi', 'chaoban', 'chaobot', 'helo', 'chao'],
+    // "hi" quá ngắn → false positive với "gachien", "mocchien"... → bỏ.
+    // "chao" cũng có thể xung đột nhưng ít; giữ và rely vào priority
+    keywords: ['xinchao', 'hello', 'chaoban', 'chaobot', 'helo', 'chao'],
     priority: 40,
   },
   {
