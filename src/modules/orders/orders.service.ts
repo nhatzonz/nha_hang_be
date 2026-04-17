@@ -19,11 +19,7 @@ import { QueryOrdersDto } from './dto/query-orders.dto';
 import { AddItemsDto } from './dto/add-items.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { generateOrderCode } from './order-code.util';
-import {
-  OrderStatus,
-  canTransitionOrderStatus,
-  isTerminalStatus,
-} from './order-state.util';
+import { OrderStatus, canTransitionOrderStatus } from './order-state.util';
 import { buildSearchWhere } from '../../common/utils/search.util';
 
 @Injectable()
@@ -231,9 +227,6 @@ export class OrdersService {
     const updatedId = await this.dataSource.transaction(async (manager) => {
       const order = await manager.findOne(Order, { where: { id } });
       if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
-      if (isTerminalStatus(order.status as OrderStatus)) {
-        throw new BadRequestException('Không thể chỉnh sửa đơn đã hoàn thành hoặc đã huỷ');
-      }
 
       // Kiểm tra customer nếu có
       if (dto.customer_id !== undefined) {
@@ -323,9 +316,34 @@ export class OrdersService {
   }
 
   async remove(id: number) {
-    // Huỷ đơn = chuyển sang cancelled (soft cancel)
-    // Nếu muốn xoá cứng, chỉ cho phép đơn đã cancelled
-    return this.changeStatus(id, { status: 'cancelled', cancelled_reason: 'Xoá bởi nhân viên' });
+    await this.dataSource.transaction(async (manager) => {
+      const order = await manager.findOne(Order, { where: { id } });
+      if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
+
+      // Nếu đơn đã cộng doanh thu cho khách hàng → trừ lại
+      if (order.status === 'completed' && order.customer_id) {
+        await manager.decrement(Customer, { id: order.customer_id }, 'total_orders', 1);
+        await manager.decrement(
+          Customer,
+          { id: order.customer_id },
+          'total_spent',
+          Number(order.final_amount),
+        );
+      }
+
+      // Giải phóng bàn nếu đơn chưa terminal
+      if (
+        order.table_id &&
+        order.status !== 'completed' &&
+        order.status !== 'cancelled'
+      ) {
+        await manager.update(Table, order.table_id, { status: 'available' });
+      }
+
+      await manager.delete(OrderDetail, { order_id: id });
+      await manager.delete(Order, { id });
+    });
+    return { success: true };
   }
 
   /**
@@ -355,11 +373,6 @@ export class OrdersService {
       const order = await manager.findOne(Order, { where: { id } });
       if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
-      const status = order.status as OrderStatus;
-      if (status === 'completed' || status === 'cancelled') {
-        throw new BadRequestException('Không thể thêm món vào đơn đã kết thúc');
-      }
-
       const { details } = await this.buildOrderDetails(manager, dto.items);
       const entities = details.map((d) =>
         manager.create(OrderDetail, { ...d, order_id: id }),
@@ -380,13 +393,6 @@ export class OrdersService {
     await this.dataSource.transaction(async (manager) => {
       const order = await manager.findOne(Order, { where: { id: orderId } });
       if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
-
-      const status = order.status as OrderStatus;
-      if (status !== 'pending' && status !== 'preparing') {
-        throw new BadRequestException(
-          'Chỉ có thể sửa món khi đơn đang chờ xử lý hoặc đang chế biến',
-        );
-      }
 
       const detail = await manager.findOne(OrderDetail, {
         where: { id: detailId, order_id: orderId },
@@ -414,13 +420,6 @@ export class OrdersService {
     await this.dataSource.transaction(async (manager) => {
       const order = await manager.findOne(Order, { where: { id: orderId } });
       if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
-
-      const status = order.status as OrderStatus;
-      if (status !== 'pending' && status !== 'preparing') {
-        throw new BadRequestException(
-          'Chỉ có thể xoá món khi đơn đang chờ xử lý hoặc đang chế biến',
-        );
-      }
 
       const detail = await manager.findOne(OrderDetail, {
         where: { id: detailId, order_id: orderId },
