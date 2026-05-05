@@ -24,7 +24,7 @@ export const buildSearchWhere = (columns: string[], term: string) => {
   const conditions = columns
     .map(
       (col, i) =>
-        `LOWER(REPLACE(${col}, ' ', '')) COLLATE utf8mb4_0900_ai_ci LIKE :s${i}`,
+        `LOWER(REPLACE(${col}, ' ', '')) COLLATE utf8mb4_unicode_ci LIKE :s${i}`,
     )
     .join(' OR ');
   const params: Record<string, string> = {};
