@@ -16,6 +16,7 @@ import {
   IntentDef,
 } from './intents';
 import { normalizeSearchTerm } from '../../common/utils/search.util';
+import { AiService } from '../ai/ai.service';
 
 export interface ChatResponse {
   reply: string;
@@ -37,6 +38,7 @@ export class ChatbotService {
     private readonly ordersService: OrdersService,
     private readonly statsService: StatisticsService,
     private readonly restaurantService: RestaurantService,
+    private readonly aiService: AiService,
   ) {}
 
   /**
@@ -338,6 +340,48 @@ export class ChatbotService {
     };
   }
 
+  private async handleThanks(): Promise<ChatResponse> {
+    return {
+      intent: 'thanks',
+      reply: 'Rất vui được hỗ trợ bạn! 😊 Bạn cần gì thêm không?',
+      suggestions: SUGGESTIONS.thanks,
+    };
+  }
+
+  /**
+   * Tư vấn món bằng AI RAG (gọi sang AI-Service). Nếu AI lỗi/không sẵn sàng
+   * thì rơi về xử lý cũ (`fallbackFn`) để chatbot không bao giờ "câm".
+   */
+  private async handleAiChat(
+    message: string,
+    fallbackFn: () => Promise<ChatResponse>,
+  ): Promise<ChatResponse> {
+    // Tin quá ngắn / không có chữ-số → không gọi Gemini, dùng fallback luôn.
+    if (message.trim().length < 3 || !/[\p{L}\p{N}]/u.test(message)) {
+      return fallbackFn();
+    }
+
+    const ai = await this.aiService.chat(message, 5);
+    if (!ai || ai.used_fallback || !ai.reply?.trim()) {
+      return fallbackFn();
+    }
+
+    const items = (ai.items || []).map((it: any) => ({
+      id: it.menu_item_id,
+      name: it.name,
+      price: it.price,
+      image: it.image,
+      category_name: it.category_name,
+    }));
+
+    return {
+      intent: 'ai_chat',
+      reply: ai.reply.trim(),
+      data: items.length ? { items } : undefined,
+      suggestions: SUGGESTIONS.search_menu,
+    };
+  }
+
   // ================ Public API ================
 
   async processMessage(
@@ -356,6 +400,9 @@ export class ChatbotService {
           break;
         case 'help':
           response = await this.handleHelp();
+          break;
+        case 'thanks':
+          response = await this.handleThanks();
           break;
         case 'restaurant_info':
           response = await this.handleRestaurantInfo();
@@ -383,10 +430,16 @@ export class ChatbotService {
           response = await this.handleSearchCustomer(message);
           break;
         case 'search_menu':
-          response = await this.handleSearchMenu(message);
+          // Hybrid: ưu tiên RAG tư vấn món, lỗi thì về tìm kiếm DB cũ.
+          response = await this.handleAiChat(message, () =>
+            this.handleSearchMenu(message),
+          );
           break;
         default:
-          response = await this.handleFallback();
+          // Câu hỏi tự do → RAG, lỗi thì trả fallback mặc định.
+          response = await this.handleAiChat(message, () =>
+            this.handleFallback(),
+          );
       }
     } catch (err) {
       response = {

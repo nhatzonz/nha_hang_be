@@ -287,3 +287,16 @@ VALUES (
 ON DUPLICATE KEY UPDATE full_name = full_name;
 
 -- pass: admin123
+
+CREATE TABLE IF NOT EXISTS menu_embeddings (
+  menu_item_id  INT          NOT NULL,
+  embedding     JSON         NOT NULL,
+  source_text   TEXT         NULL,
+  model         VARCHAR(64)  NULL,
+  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (menu_item_id),
+  CONSTRAINT fk_menu_embeddings_item
+    FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -65,6 +65,12 @@ export const INTENTS: IntentDef[] = [
     priority: 40,
   },
   {
+    name: 'thanks',
+    // Câu xã giao → trả lời sẵn, không cần gọi AI (tiết kiệm quota Gemini).
+    keywords: ['camon', 'thanks', 'thankyou', 'tks', 'camonban', 'okela'],
+    priority: 41,
+  },
+  {
     name: 'search_customer',
     keywords: ['timkhach', 'tinkhach', 'khachhang', 'khachten', 'tra cuukhach'],
     priority: 45,
@@ -79,6 +85,7 @@ export const INTENTS: IntentDef[] = [
  */
 export const SUGGESTIONS: Record<string, string[]> = {
   greeting: ['Xem menu', 'Còn bàn trống không?', 'Doanh thu hôm nay', 'Món bán chạy'],
+  thanks: ['Xem menu', 'Món bán chạy', 'Còn bàn trống không?'],
   help: ['Xem menu', 'Còn bàn trống không?', 'Đơn ORD-20260417-001', 'Doanh thu hôm nay'],
   view_menu: ['Món bán chạy', 'Tìm món Tôm hùm', 'Doanh thu hôm nay'],
   top_items: ['Xem menu', 'Doanh thu hôm nay', 'Còn bàn trống không?'],

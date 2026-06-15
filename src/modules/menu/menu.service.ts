@@ -9,6 +9,7 @@ import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { QueryMenuDto } from './dto/query-menu.dto';
 import { buildSearchWhere } from '../../common/utils/search.util';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class MenuService {
@@ -17,6 +18,7 @@ export class MenuService {
     private readonly menuRepo: Repository<MenuItem>,
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
+    private readonly aiService: AiService,
   ) {}
 
   private async validateCategory(categoryId?: number) {
@@ -85,7 +87,10 @@ export class MenuService {
       image: imagePath,
       is_available: dto.is_available ?? 1,
     });
-    return this.menuRepo.save(item);
+    const saved = await this.menuRepo.save(item);
+    // Đồng bộ embedding sang AI-Service (không chặn response).
+    this.aiService.ingestItem(saved.id);
+    return saved;
   }
 
   async update(id: number, dto: UpdateMenuItemDto, imagePath?: string) {
@@ -106,6 +111,9 @@ export class MenuService {
       this.deleteImageFile(oldImage);
     }
 
+    // Cập nhật lại embedding theo nội dung mới.
+    this.aiService.ingestItem(saved.id);
+
     return saved;
   }
 
@@ -113,6 +121,8 @@ export class MenuService {
     const item = await this.findOne(id);
     this.deleteImageFile(item.image);
     await this.menuRepo.remove(item);
+    // FK ON DELETE CASCADE đã xoá embedding; gọi thêm cho chắc/đồng bộ.
+    this.aiService.removeIngest(id);
     return { message: 'Đã xoá món thành công' };
   }
 }

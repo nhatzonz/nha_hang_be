@@ -5,6 +5,7 @@ import { Category } from './category.entity';
 import { MenuItem } from './menu-item.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class CategoriesService {
@@ -13,6 +14,7 @@ export class CategoriesService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(MenuItem)
     private readonly menuItemRepo: Repository<MenuItem>,
+    private readonly aiService: AiService,
   ) {}
 
   async findAll() {
@@ -41,13 +43,26 @@ export class CategoriesService {
   async update(id: number, dto: UpdateCategoryDto) {
     const category = await this.findOne(id);
 
-    if (dto.name && dto.name !== category.name) {
+    const nameChanged = !!dto.name && dto.name !== category.name;
+    if (nameChanged) {
       const duplicate = await this.categoryRepo.findOne({ where: { name: dto.name } });
       if (duplicate) throw new ConflictException('Tên danh mục đã tồn tại');
     }
 
     Object.assign(category, dto);
-    return this.categoryRepo.save(category);
+    const saved = await this.categoryRepo.save(category);
+
+    // Đổi tên danh mục → source_text của các món trong danh mục thay đổi,
+    // re-ingest để embedding khớp mô tả mới.
+    if (nameChanged) {
+      const items = await this.menuItemRepo.find({
+        where: { category_id: id },
+        select: ['id'],
+      });
+      items.forEach((it) => this.aiService.ingestItem(it.id));
+    }
+
+    return saved;
   }
 
   async remove(id: number) {

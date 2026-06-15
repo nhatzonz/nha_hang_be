@@ -10,6 +10,7 @@ import { CustomersModule } from '../customers/customers.module';
 import { OrdersModule } from '../orders/orders.module';
 import { StatisticsModule } from '../statistics/statistics.module';
 import { RestaurantModule } from '../restaurant/restaurant.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RestaurantModule } from '../restaurant/restaurant.module';
     OrdersModule,
     StatisticsModule,
     RestaurantModule,
+    AiModule,
   ],
   controllers: [ChatbotController],
   providers: [ChatbotService],
