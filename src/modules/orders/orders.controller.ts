@@ -31,6 +31,11 @@ export class OrdersController {
     return this.ordersService.findAll(query);
   }
 
+  @Get('summary')
+  getSummary(@Query() query: QueryOrdersDto) {
+    return this.ordersService.getSummary(query);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.ordersService.findOne(id);

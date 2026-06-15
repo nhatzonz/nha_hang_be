@@ -57,6 +57,11 @@ export class MenuController {
     return this.menuService.findAll(query);
   }
 
+  @Get('summary')
+  getSummary(@Query() query: QueryMenuDto) {
+    return this.menuService.getSummary(query);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.menuService.findOne(id);

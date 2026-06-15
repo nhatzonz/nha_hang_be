@@ -74,10 +74,15 @@ export class OrdersService {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.table', 'table')
       .leftJoinAndSelect('o.customer', 'customer')
-      .leftJoinAndSelect('o.staff', 'staff');
+      .leftJoinAndSelect('o.staff', 'staff')
+      .leftJoinAndSelect('o.order_details', 'order_details')
+      .leftJoinAndSelect('order_details.menu_item', 'menu_item');
 
     if (search) {
-      const { sql, params } = buildSearchWhere(['o.order_code'], search);
+      const { sql, params } = buildSearchWhere(
+        ['o.order_code', 'customer.full_name', 'customer.phone'],
+        search,
+      );
       qb.andWhere(sql, params);
     }
     if (status) qb.andWhere('o.status = :status', { status });
@@ -106,6 +111,72 @@ export class OrdersService {
       limit: Number(limit),
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Thống kê tổng quan cho màn danh sách đơn.
+   * Tôn trọng bộ lọc search + khoảng ngày (KHÔNG lọc theo status để đếm được
+   * từng trạng thái). Trả về: đếm theo trạng thái, doanh thu (đơn completed),
+   * số đơn hoàn thành và giá trị trung bình/đơn trong phạm vi lọc.
+   */
+  async getSummary(query: QueryOrdersDto) {
+    const { search, from_date, to_date } = query;
+
+    const base = () => {
+      const qb = this.orderRepo
+        .createQueryBuilder('o')
+        .leftJoin('o.customer', 'customer');
+      if (search) {
+        const { sql, params } = buildSearchWhere(
+          ['o.order_code', 'customer.full_name', 'customer.phone'],
+          search,
+        );
+        qb.andWhere(sql, params);
+      }
+      if (from_date && to_date) {
+        qb.andWhere('o.created_at BETWEEN :from AND :to', {
+          from: new Date(from_date),
+          to: new Date(to_date),
+        });
+      } else if (from_date) {
+        qb.andWhere('o.created_at >= :from', { from: new Date(from_date) });
+      } else if (to_date) {
+        qb.andWhere('o.created_at <= :to', { to: new Date(to_date) });
+      }
+      return qb;
+    };
+
+    const rows = await base()
+      .select('o.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('o.status')
+      .getRawMany();
+
+    const countByStatus = {
+      pending: 0,
+      preparing: 0,
+      served: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    let total = 0;
+    rows.forEach((r) => {
+      if (r.status in countByStatus) countByStatus[r.status] = Number(r.count);
+      total += Number(r.count);
+    });
+
+    const rev = await base()
+      .andWhere('o.status = :st', { st: 'completed' })
+      .select('COALESCE(SUM(o.final_amount), 0)', 'revenue')
+      .addSelect('COUNT(*)', 'cnt')
+      .getRawOne();
+
+    const revenue = Number(rev?.revenue) || 0;
+    const completedCount = Number(rev?.cnt) || 0;
+    const avgOrderValue =
+      completedCount > 0 ? Math.round(revenue / completedCount) : 0;
+
+    return { total, countByStatus, revenue, completedCount, avgOrderValue };
   }
 
   /**

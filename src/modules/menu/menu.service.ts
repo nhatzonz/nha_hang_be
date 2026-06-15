@@ -70,6 +70,54 @@ export class MenuService {
     };
   }
 
+  /**
+   * Thống kê cho màn thực đơn: tổng số món, đang bán, tạm hết,
+   * số danh mục, và đếm món theo từng danh mục (tôn trọng search + is_available).
+   */
+  async getSummary(query: QueryMenuDto) {
+    const { search, is_available } = query;
+
+    const base = () => {
+      const qb = this.menuRepo.createQueryBuilder('m');
+      if (search) {
+        const { sql, params } = buildSearchWhere(['m.name', 'm.description'], search);
+        qb.andWhere(`(${sql})`, params);
+      }
+      return qb;
+    };
+
+    const available = await base().andWhere('m.is_available = 1').getCount();
+    const unavailable = await base().andWhere('m.is_available = 0').getCount();
+
+    const catQb = base()
+      .leftJoin('m.category', 'c')
+      .select('m.category_id', 'category_id')
+      .addSelect('c.name', 'name')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('m.category_id')
+      .addGroupBy('c.name');
+    if (is_available !== undefined) {
+      catQb.andWhere('m.is_available = :a', { a: is_available });
+    }
+    const rows = await catQb.getRawMany();
+
+    const byCategory = rows.map((r) => ({
+      id: r.category_id,
+      name: r.name || 'Chưa phân loại',
+      count: Number(r.count),
+    }));
+
+    const categoryCount = await this.categoryRepo.count();
+
+    return {
+      total: available + unavailable,
+      available,
+      unavailable,
+      categoryCount,
+      byCategory,
+    };
+  }
+
   async findOne(id: number) {
     const item = await this.menuRepo.findOne({
       where: { id },
