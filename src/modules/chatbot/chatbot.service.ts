@@ -109,6 +109,7 @@ export class ChatbotService {
         '• Xem menu, tìm món theo tên\n' +
         '• Kiểm tra bàn trống\n' +
         '• Tra cứu đơn hàng (nhập mã ORD-YYYYMMDD-NNN)\n' +
+        '• Gợi ý món cho khách theo lịch sử (VD: "Gợi ý món cho khách 0901234567")\n' +
         '• Xem doanh thu hôm nay / món bán chạy\n' +
         '• Hỏi thông tin nhà hàng (giờ mở cửa, địa chỉ)',
       suggestions: SUGGESTIONS.help,
@@ -161,7 +162,7 @@ export class ChatbotService {
       };
     }
     const lines = items
-      .map((m, i) => `${i + 1}. ${m.name} — ${m.quantity} lượt (${m.revenue.toLocaleString('vi-VN')}đ)`)
+      .map((m, i) => `${i + 1}. ${m.name} - ${m.quantity} lượt (${m.revenue.toLocaleString('vi-VN')}đ)`)
       .join('\n');
     return {
       intent: 'top_items',
@@ -187,7 +188,7 @@ export class ChatbotService {
       };
     }
 
-    const names = available.map((t) => `• ${t.name}${t.location ? ` (${t.location})` : ''} — ${t.capacity} người`).join('\n');
+    const names = available.map((t) => `• ${t.name}${t.location ? ` (${t.location})` : ''} - ${t.capacity} người`).join('\n');
     return {
       intent: 'check_table',
       reply: `✅ Đang có ${available.length}/${allTables.length} bàn trống:\n\n${names}`,
@@ -293,7 +294,7 @@ export class ChatbotService {
     }
 
     const lines = data
-      .map((c) => `• ${c.full_name}${c.phone ? ' · ' + c.phone : ''} — ${c.total_orders} đơn, ${Number(c.total_spent).toLocaleString('vi-VN')}đ`)
+      .map((c) => `• ${c.full_name}${c.phone ? ' · ' + c.phone : ''} - ${c.total_orders} đơn, ${Number(c.total_spent).toLocaleString('vi-VN')}đ`)
       .join('\n');
 
     return {
@@ -301,6 +302,95 @@ export class ChatbotService {
       reply: `Tìm được ${total} khách:\n\n${lines}`,
       data: { customers: data },
       suggestions: SUGGESTIONS.search_customer,
+    };
+  }
+
+  /**
+   * Tách tham chiếu khách (tên hoặc SĐT) ra khỏi câu hỏi gợi ý.
+   * VD: "gợi ý món cho khách 0901234567" -> "0901234567"
+   *     "gợi ý cho khách Anh Tuấn" -> "Anh Tuấn"
+   */
+  private extractCustomerRef(message: string): string {
+    const phone = message.match(/\d{8,11}/);
+    if (phone) return phone[0];
+
+    const m = message.match(/kh[áa]ch(?:\s*h[àa]ng)?\s+(.+)/iu);
+    if (m) {
+      return m[1]
+        // bỏ phần đuôi kiểu "... thường ăn gì", "... nên ăn món gì"
+        .replace(/\s+(n[êe]n|th[ưuừ][ờo]ng|hay|th[íi]ch|ăn|an|g[ìi]|gi|m[óo]n|mon)\b.*$/iu, '')
+        .trim();
+    }
+    return '';
+  }
+
+  /**
+   * Gợi ý món cho một khách cụ thể, dựa trên lịch sử đặt món
+   * (tái dùng engine cá nhân hoá của AI-Service qua aiService.recommend).
+   */
+  private async handleRecommendForCustomer(message: string): Promise<ChatResponse> {
+    const ref = this.extractCustomerRef(message);
+    if (!ref) {
+      return {
+        intent: 'recommend_for_customer',
+        reply:
+          'Bạn muốn gợi ý món cho khách nào? Hãy cho tôi tên hoặc số điện thoại của khách. ' +
+          'VD: "Gợi ý món cho khách 0901234567".',
+        suggestions: SUGGESTIONS.recommend_for_customer,
+      };
+    }
+
+    const { data, total } = await this.customersService.findAll({
+      search: ref,
+      limit: 1,
+      page: 1,
+    });
+
+    if (total === 0 || !data.length) {
+      return {
+        intent: 'recommend_for_customer',
+        reply: `Không tìm thấy khách hàng khớp với "${ref}". Bạn kiểm tra lại tên hoặc SĐT giúp tôi nhé.`,
+        suggestions: SUGGESTIONS.recommend_for_customer,
+      };
+    }
+
+    const customer = data[0];
+    const rec = await this.aiService.recommend(customer.id, 6);
+
+    if (!rec || !Array.isArray(rec.results) || rec.results.length === 0) {
+      return {
+        intent: 'recommend_for_customer',
+        reply:
+          `Hiện chưa thể gợi ý món cho khách ${customer.full_name}. ` +
+          'Dịch vụ gợi ý AI có thể đang tạm gián đoạn, bạn thử lại sau nhé.',
+        suggestions: SUGGESTIONS.recommend_for_customer,
+      };
+    }
+
+    const items = rec.results.map((it: any) => ({
+      id: it.menu_item_id,
+      name: it.name,
+      price: it.price,
+      image: it.image,
+      category_name: it.category_name,
+    }));
+
+    const strategyText =
+      rec.strategy === 'personalized'
+        ? 'dựa trên các món khách từng đặt'
+        : 'theo món bán chạy (khách chưa có lịch sử đặt món)';
+
+    const lines = items
+      .map((m: any) => `• ${m.name} - ${Number(m.price).toLocaleString('vi-VN')}đ`)
+      .join('\n');
+
+    return {
+      intent: 'recommend_for_customer',
+      reply:
+        `Gợi ý món cho khách ${customer.full_name}` +
+        `${customer.phone ? ` (${customer.phone})` : ''} - ${strategyText}:\n\n${lines}`,
+      data: { items },
+      suggestions: SUGGESTIONS.recommend_for_customer,
     };
   }
 
@@ -321,7 +411,7 @@ export class ChatbotService {
     }
 
     const lines = data
-      .map((m) => `• ${m.name} — ${Number(m.price).toLocaleString('vi-VN')}đ`)
+      .map((m) => `• ${m.name} - ${Number(m.price).toLocaleString('vi-VN')}đ`)
       .join('\n');
 
     return {
@@ -428,6 +518,9 @@ export class ChatbotService {
         case 'search_customer':
           // Lấy token có ý nghĩa (phần sau keyword)
           response = await this.handleSearchCustomer(message);
+          break;
+        case 'recommend_for_customer':
+          response = await this.handleRecommendForCustomer(message);
           break;
         case 'search_menu':
           // Hybrid: ưu tiên RAG tư vấn món, lỗi thì về tìm kiếm DB cũ.

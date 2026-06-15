@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
-  // Public endpoint (không cần đăng nhập) — cho khách đặt bàn online
+  // Public endpoint (không cần đăng nhập) - cho khách đặt bàn online
   @Post()
   create(@Body() dto: CreateReservationDto) {
     return this.reservationsService.create(dto);

@@ -9,13 +9,13 @@ import { Roles } from '../../common/decorators/roles.decorator';
 export class RestaurantController {
   constructor(private readonly restaurantService: RestaurantService) {}
 
-  // Public — lấy thông tin nhà hàng (hiện trên login page, hoá đơn...)
+  // Public - lấy thông tin nhà hàng (hiện trên login page, hoá đơn...)
   @Get('info')
   getInfo() {
     return this.restaurantService.getInfo();
   }
 
-  // Admin only — sửa thông tin nhà hàng
+  // Admin only - sửa thông tin nhà hàng
   @Patch('info')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

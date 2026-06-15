@@ -225,7 +225,7 @@ export class OrdersService {
       const table = await manager.findOne(Table, { where: { id: dto.table_id } });
       if (!table) throw new NotFoundException('Không tìm thấy bàn');
 
-      // Check active order thay vì table.status — vì bàn có thể occupied do reservation completed
+      // Check active order thay vì table.status - vì bàn có thể occupied do reservation completed
       // mà chưa có order nào (staff sắp tạo ngay)
       const activeOrder = await manager
         .createQueryBuilder(Order, 'o')

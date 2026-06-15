@@ -71,6 +71,18 @@ export const INTENTS: IntentDef[] = [
     priority: 41,
   },
   {
+    // Gợi ý món theo lịch sử của một khách cụ thể (tên/SĐT).
+    // Ưu tiên cao hơn search_customer để câu "gợi ý món cho khách X"
+    // không bị rơi vào tìm khách.
+    name: 'recommend_for_customer',
+    keywords: [
+      'chokhach', 'goiykhach', 'goiymoncho', 'monchokhach', 'tuvanchokhach',
+      'goiytheokhach', 'khachthuongan', 'khachhayan', 'khachthich', 'thuongangi',
+      'monyeuthich',
+    ],
+    priority: 70,
+  },
+  {
     name: 'search_customer',
     keywords: ['timkhach', 'tinkhach', 'khachhang', 'khachten', 'tra cuukhach'],
     priority: 45,
@@ -86,7 +98,7 @@ export const INTENTS: IntentDef[] = [
 export const SUGGESTIONS: Record<string, string[]> = {
   greeting: ['Xem menu', 'Còn bàn trống không?', 'Doanh thu hôm nay', 'Món bán chạy'],
   thanks: ['Xem menu', 'Món bán chạy', 'Còn bàn trống không?'],
-  help: ['Xem menu', 'Còn bàn trống không?', 'Đơn ORD-20260417-001', 'Doanh thu hôm nay'],
+  help: ['Xem menu', 'Gợi ý món cho khách', 'Đơn ORD-20260417-001', 'Doanh thu hôm nay'],
   view_menu: ['Món bán chạy', 'Tìm món Tôm hùm', 'Doanh thu hôm nay'],
   top_items: ['Xem menu', 'Doanh thu hôm nay', 'Còn bàn trống không?'],
   check_table: ['Xem menu', 'Doanh thu hôm nay', 'Giờ mở cửa'],
@@ -95,6 +107,7 @@ export const SUGGESTIONS: Record<string, string[]> = {
   check_order_by_code: ['Doanh thu hôm nay', 'Thống kê đơn hàng'],
   restaurant_info: ['Xem menu', 'Còn bàn trống không?', 'Doanh thu hôm nay'],
   search_customer: ['Xem menu', 'Doanh thu hôm nay'],
+  recommend_for_customer: ['Xem menu', 'Món bán chạy', 'Tìm khách hàng'],
   search_menu: ['Xem menu', 'Món bán chạy', 'Còn bàn trống không?'],
   fallback: ['Xem menu', 'Còn bàn trống không?', 'Giờ mở cửa', 'Bạn làm được gì?'],
 };

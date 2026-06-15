@@ -48,7 +48,7 @@ export class CustomersService {
 
   /**
    * Tìm chính xác khách theo SĐT (unique lookup).
-   * Trả null nếu không có — không throw.
+   * Trả null nếu không có - không throw.
    */
   async findByPhone(phone: string) {
     if (!phone) return null;

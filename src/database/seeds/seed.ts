@@ -120,11 +120,11 @@ const STAFF_USERS = [
   { full_name: 'Vũ Ngọc Lan', email: 'staff4@nhahang.vn', phone: '0900000007', role: 'staff' },
 ];
 
-// Ảnh từ Unsplash — query trực tiếp món ăn
+// Ảnh từ Unsplash - query trực tiếp món ăn
 const CATEGORIES = [
   {
     name: 'Hải sản',
-    description: 'Tôm, cua, ghẹ, mực — tươi sống',
+    description: 'Tôm, cua, ghẹ, mực - tươi sống',
     items: [
       { name: 'Tôm hùm Alaska nướng phô mai', price: 1200000, q: 'lobster-cheese' },
       { name: 'Cua hoàng đế hấp bia', price: 1500000, q: 'king-crab' },
@@ -306,7 +306,7 @@ async function main() {
         category_id: cat!.id,
         name: item.name,
         price: item.price,
-        description: `${item.name} — chế biến tươi từ nguyên liệu chọn lọc`,
+        description: `${item.name} - chế biến tươi từ nguyên liệu chọn lọc`,
         image: image || null,
         is_available: Math.random() > 0.1 ? 1 : 0,
       } as any);

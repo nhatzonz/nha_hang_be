@@ -67,7 +67,7 @@ export class BankAccountsService {
   }
 
   /**
-   * Kích hoạt 1 tài khoản — tự deactivate các tài khoản còn lại.
+   * Kích hoạt 1 tài khoản - tự deactivate các tài khoản còn lại.
    * Chỉ 1 tài khoản active tại 1 thời điểm (business rule).
    */
   async activate(id: number) {
