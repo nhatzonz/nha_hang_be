@@ -32,6 +32,39 @@ async def ingest_full():
     return {"total": len(items), "ingested": ingested}
 
 
+@router.post("/ingest/missing")
+async def ingest_missing():
+    """Chỉ nạp embedding cho các món đang bán mà CHƯA có trong bảng.
+
+    Tiết kiệm request Gemini: bỏ qua món đã có embedding.
+    """
+    items = await menu_repo.list_menu_items(only_available=True)
+    existing_ids = {r["menu_item_id"] for r in await menu_repo.load_all_embeddings()}
+    todo = [it for it in items if it["id"] not in existing_ids]
+    if not todo:
+        return {"total": len(items), "missing": 0, "ingested": 0, "ids": []}
+
+    texts = [menu_repo.build_source_text(it) for it in todo]
+    BATCH = 50
+    ingested = 0
+    done_ids: list[int] = []
+    for i in range(0, len(todo), BATCH):
+        chunk = todo[i : i + BATCH]
+        chunk_texts = texts[i : i + BATCH]
+        try:
+            vectors = await gemini.embed_texts(chunk_texts)
+        except gemini.GeminiError as e:
+            raise HTTPException(502, f"Lỗi ở lô {i}: {e}")
+        for it, txt, vec in zip(chunk, chunk_texts, vectors):
+            await menu_repo.upsert_embedding(
+                it["id"], vec, txt, settings.gemini_embed_model
+            )
+            ingested += 1
+            done_ids.append(it["id"])
+
+    return {"total": len(items), "missing": len(todo), "ingested": ingested, "ids": done_ids}
+
+
 @router.post("/ingest/{menu_id}")
 async def ingest_one(menu_id: int):
     """Tạo/cập nhật embedding cho 1 món."""

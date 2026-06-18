@@ -23,6 +23,30 @@ async def init_pool() -> None:
     )
 
 
+async def ensure_schema() -> None:
+    """Tạo bảng menu_embeddings nếu chưa có (chạy lúc startup).
+
+    Không đặt FOREIGN KEY tới menu_items để khỏi phụ thuộc thứ tự khởi động
+    giữa các container — NestJS đã chủ động gọi DELETE /ingest/{id} khi xoá món.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS menu_embeddings (
+                  menu_item_id  INT          NOT NULL,
+                  embedding     JSON         NOT NULL,
+                  source_text   TEXT         NULL,
+                  model         VARCHAR(64)  NULL,
+                  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                              ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (menu_item_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """
+            )
+
+
 async def close_pool() -> None:
     global _pool
     if _pool is not None:

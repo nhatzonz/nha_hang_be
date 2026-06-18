@@ -12,6 +12,7 @@ from routers import chat, health, ingest, recommend
 async def lifespan(app: FastAPI):
     # Khởi tạo pool MySQL khi service start, đóng khi shutdown.
     await db.init_pool()
+    await db.ensure_schema()  # tạo bảng menu_embeddings nếu chưa có
     yield
     await db.close_pool()
 
