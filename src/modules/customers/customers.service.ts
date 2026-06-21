@@ -6,6 +6,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomersDto } from './dto/query-customers.dto';
 import { buildSearchWhere } from '../../common/utils/search.util';
+import { computeCustomerGroup, groupOrdersRange } from './customer-group.util';
 
 @Injectable()
 export class CustomersService {
@@ -15,7 +16,7 @@ export class CustomersService {
   ) {}
 
   async findAll(query: QueryCustomersDto) {
-    const { search, page = 1, limit = 20 } = query;
+    const { search, group, sort, page = 1, limit = 20 } = query;
     const qb = this.customerRepo.createQueryBuilder('c');
 
     if (search) {
@@ -23,16 +24,27 @@ export class CustomersService {
         ['c.full_name', 'c.phone', 'c.email'],
         search,
       );
-      qb.where(sql, params);
+      qb.andWhere(sql, params);
     }
 
-    qb.orderBy('c.created_at', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
+    if (group) {
+      const { min, max } = groupOrdersRange(group);
+      qb.andWhere('c.total_orders >= :min', { min });
+      if (max !== null) qb.andWhere('c.total_orders <= :max', { max });
+    }
+
+    if (sort === 'az') qb.orderBy('c.full_name', 'ASC');
+    else if (sort === 'za') qb.orderBy('c.full_name', 'DESC');
+    else qb.orderBy('c.created_at', 'DESC');
+
+    qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
     return {
-      data,
+      data: data.map((c) => ({
+        ...c,
+        customer_group: computeCustomerGroup(c.total_orders),
+      })),
       total,
       page: Number(page),
       limit: Number(limit),
@@ -43,7 +55,7 @@ export class CustomersService {
   async findOne(id: number) {
     const customer = await this.customerRepo.findOne({ where: { id } });
     if (!customer) throw new NotFoundException('Không tìm thấy khách hàng');
-    return customer;
+    return { ...customer, customer_group: computeCustomerGroup(customer.total_orders) };
   }
 
   /**

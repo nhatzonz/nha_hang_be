@@ -20,6 +20,14 @@ export const INTENTS: IntentDef[] = [
     pattern: /ORD-\d{8}-\d{3}/i,
     priority: 100,
   },
+  // Doanh thu theo khoảng ngày: "doanh thu từ 01/06 đến 15/06".
+  // Yêu cầu có từ "doanh thu/doanh số" + 2 mốc ngày nối bởi đến/->/-/tới.
+  {
+    name: 'revenue_range',
+    pattern:
+      /(?:doanh\s*thu|doanh\s*so)[\s\S]*?\d{1,2}[\/\-.]\d{1,2}[\s\S]*?(?:đến|den|->|tới|toi|-)[\s\S]*?\d{1,2}[\/\-.]\d{1,2}/iu,
+    priority: 90,
+  },
 
   // 2. Keyword-based
   {
@@ -36,6 +44,23 @@ export const INTENTS: IntentDef[] = [
     name: 'check_table',
     keywords: ['bantrong', 'conban', 'bannao', 'kiemtraban', 'tinhtrangban', 'banavailable', 'conchoban'],
     priority: 55,
+  },
+  // Lưu ý: chấm điểm theo độ dài keyword match, nên revenue_week/month phải có
+  // keyword dài hơn 'doanhthu' để thắng revenue_today khi câu chứa "tuần/tháng này".
+  {
+    name: 'revenue_week',
+    keywords: ['doanhthutuannay', 'doanhthutuan', 'doanhsotuannay', 'doanhsotuan', 'tuannay'],
+    priority: 60,
+  },
+  {
+    name: 'revenue_month',
+    keywords: ['doanhthuthangnay', 'doanhthuthang', 'doanhsothangnay', 'doanhsothang', 'thangnay'],
+    priority: 60,
+  },
+  {
+    name: 'revenue_last_month',
+    keywords: ['doanhthuthangtruoc', 'doanhsothangtruoc', 'thangtruoc', 'thangvua'],
+    priority: 60,
   },
   {
     name: 'revenue_today',
@@ -102,7 +127,11 @@ export const SUGGESTIONS: Record<string, string[]> = {
   view_menu: ['Món bán chạy', 'Tìm món Tôm hùm', 'Doanh thu hôm nay'],
   top_items: ['Xem menu', 'Doanh thu hôm nay', 'Còn bàn trống không?'],
   check_table: ['Xem menu', 'Doanh thu hôm nay', 'Giờ mở cửa'],
-  revenue_today: ['Thống kê đơn hàng', 'Món bán chạy', 'Còn bàn trống không?'],
+  revenue_today: ['Doanh thu tuần này', 'Doanh thu tháng này', 'Doanh thu tháng trước', 'Món bán chạy'],
+  revenue_week: ['Doanh thu hôm nay', 'Doanh thu tháng này', 'Doanh thu tháng trước', 'Món bán chạy'],
+  revenue_month: ['Doanh thu tháng trước', 'Doanh thu hôm nay', 'Doanh thu từ 01/06 đến 15/06', 'Món bán chạy'],
+  revenue_last_month: ['Doanh thu tháng này', 'Doanh thu từ 01/06 đến 15/06', 'Thống kê đơn hàng', 'Món bán chạy'],
+  revenue_range: ['Doanh thu hôm nay', 'Doanh thu tháng này', 'Doanh thu tháng trước', 'Món bán chạy'],
   order_stats: ['Doanh thu hôm nay', 'Xem menu', 'Còn bàn trống không?'],
   check_order_by_code: ['Doanh thu hôm nay', 'Thống kê đơn hàng'],
   restaurant_info: ['Xem menu', 'Còn bàn trống không?', 'Doanh thu hôm nay'],

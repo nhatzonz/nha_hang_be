@@ -110,7 +110,8 @@ export class ChatbotService {
         '• Kiểm tra bàn trống\n' +
         '• Tra cứu đơn hàng (nhập mã ORD-YYYYMMDD-NNN)\n' +
         '• Gợi ý món cho khách theo lịch sử (VD: "Gợi ý món cho khách 0901234567")\n' +
-        '• Xem doanh thu hôm nay / món bán chạy\n' +
+        '• Xem doanh thu: hôm nay / tuần này / tháng này / tháng trước / theo khoảng ngày (VD: "Doanh thu từ 01/06 đến 15/06")\n' +
+        '• Xem món bán chạy\n' +
         '• Hỏi thông tin nhà hàng (giờ mở cửa, địa chỉ)',
       suggestions: SUGGESTIONS.help,
     };
@@ -197,26 +198,126 @@ export class ChatbotService {
     };
   }
 
-  private async handleRevenueToday(): Promise<ChatResponse> {
-    const overview = await this.statsService.getOverview('today');
+  /** Dựng câu trả lời doanh thu chung cho mọi mốc thời gian. */
+  private buildRevenueReply(
+    intent: string,
+    label: string,
+    overview: any,
+    compare?: string,
+  ): ChatResponse {
     const revenue = overview.revenue.value;
     const orders = overview.orders.value;
     const change = overview.revenue.change;
 
     let changeText = '';
-    if (change !== 0 && Math.abs(change) !== 100) {
+    if (compare && change !== 0 && Math.abs(change) !== 100) {
       const sign = change > 0 ? '📈 tăng' : '📉 giảm';
-      changeText = ` (${sign} ${Math.abs(change).toFixed(1)}% so với hôm qua)`;
+      changeText = ` (${sign} ${Math.abs(change).toFixed(1)}% ${compare})`;
     }
 
     return {
-      intent: 'revenue_today',
+      intent,
       reply:
-        `💰 Doanh thu hôm nay: ${revenue.toLocaleString('vi-VN')}đ${changeText}\n` +
+        `💰 Doanh thu ${label}: ${revenue.toLocaleString('vi-VN')}đ${changeText}\n` +
         `📦 Số đơn hoàn thành: ${orders}\n` +
         `💳 Giá trị đơn TB: ${Math.round(overview.avgOrderValue.value).toLocaleString('vi-VN')}đ`,
       data: { overview },
-      suggestions: SUGGESTIONS.revenue_today,
+      suggestions: SUGGESTIONS[intent] || SUGGESTIONS.revenue_today,
+    };
+  }
+
+  private async handleRevenue(
+    period: 'today' | 'week' | 'month',
+  ): Promise<ChatResponse> {
+    const META = {
+      today: { intent: 'revenue_today', label: 'hôm nay', compare: 'so với hôm qua' },
+      week: { intent: 'revenue_week', label: 'tuần này (7 ngày gần đây)', compare: 'so với tuần trước' },
+      month: { intent: 'revenue_month', label: 'tháng này (30 ngày gần đây)', compare: 'so với tháng trước' },
+    }[period];
+
+    const overview = await this.statsService.getOverview(period);
+    return this.buildRevenueReply(META.intent, META.label, overview, META.compare);
+  }
+
+  private formatDateISO(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  /** Doanh thu tháng dương lịch liền trước (vd hôm nay 6/2026 → tháng 5/2026). */
+  private async handleRevenueLastMonth(): Promise<ChatResponse> {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0); // ngày cuối tháng trước
+    const overview = await this.statsService.getOverview(
+      'custom',
+      this.formatDateISO(from),
+      this.formatDateISO(to),
+    );
+    const label = `tháng trước (tháng ${from.getMonth() + 1}/${from.getFullYear()})`;
+    return this.buildRevenueReply('revenue_last_month', label, overview);
+  }
+
+  /** Doanh thu trong khoảng ngày tuỳ ý do người dùng nhập. */
+  private async handleRevenueRange(message: string): Promise<ChatResponse> {
+    const range = this.extractDateRange(message);
+    if (!range) {
+      return {
+        intent: 'revenue_range',
+        reply:
+          'Bạn vui lòng nhập khoảng ngày rõ ràng, ví dụ:\n' +
+          '“Doanh thu từ 01/06/2026 đến 15/06/2026”',
+        suggestions: SUGGESTIONS.revenue_range,
+      };
+    }
+    const overview = await this.statsService.getOverview(
+      'custom',
+      range.from,
+      range.to,
+    );
+    return this.buildRevenueReply(
+      'revenue_range',
+      `từ ${range.fromLabel} đến ${range.toLabel}`,
+      overview,
+    );
+  }
+
+  /**
+   * Trích 2 mốc ngày đầu tiên trong câu (dd/mm[/yyyy], chấp nhận / - .).
+   * Thiếu năm → lấy năm hiện tại. Tự đảo nếu người dùng nhập ngược.
+   */
+  private extractDateRange(
+    message: string,
+  ): { from: string; to: string; fromLabel: string; toLabel: string } | null {
+    const dateRe = /(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?/g;
+    const found: { d: Date; day: number; mon: number; year: number }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = dateRe.exec(message)) !== null) {
+      const day = Number(m[1]);
+      const mon = Number(m[2]);
+      let year = m[3] ? Number(m[3]) : new Date().getFullYear();
+      if (year < 100) year += 2000;
+      if (day < 1 || day > 31 || mon < 1 || mon > 12) continue;
+      const d = new Date(year, mon - 1, day);
+      // Loại ngày không hợp lệ (vd 31/02)
+      if (d.getMonth() !== mon - 1 || d.getDate() !== day) continue;
+      found.push({ d, day, mon, year });
+      if (found.length === 2) break;
+    }
+    if (found.length < 2) return null;
+
+    let [a, b] = found;
+    if (a.d.getTime() > b.d.getTime()) [a, b] = [b, a];
+
+    const lbl = (x: { day: number; mon: number; year: number }) =>
+      `${String(x.day).padStart(2, '0')}/${String(x.mon).padStart(2, '0')}/${x.year}`;
+    return {
+      from: this.formatDateISO(a.d),
+      to: this.formatDateISO(b.d),
+      fromLabel: lbl(a),
+      toLabel: lbl(b),
     };
   }
 
@@ -507,7 +608,19 @@ export class ChatbotService {
           response = await this.handleCheckTable();
           break;
         case 'revenue_today':
-          response = await this.handleRevenueToday();
+          response = await this.handleRevenue('today');
+          break;
+        case 'revenue_week':
+          response = await this.handleRevenue('week');
+          break;
+        case 'revenue_month':
+          response = await this.handleRevenue('month');
+          break;
+        case 'revenue_last_month':
+          response = await this.handleRevenueLastMonth();
+          break;
+        case 'revenue_range':
+          response = await this.handleRevenueRange(message);
           break;
         case 'order_stats':
           response = await this.handleOrderStats();
