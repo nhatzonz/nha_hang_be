@@ -37,6 +37,19 @@ export const INTENTS: IntentDef[] = [
     keywords: ['bantrong', 'conban', 'bannao', 'kiemtraban', 'tinhtrangban', 'banavailable', 'conchoban'],
     priority: 55,
   },
+  // Lưu ý thứ tự không quan trọng (chấm điểm theo độ dài keyword match),
+  // nhưng revenue_week/month phải có keyword dài hơn 'doanhthu' để thắng
+  // intent revenue_today khi câu chứa "tuần này" / "tháng này".
+  {
+    name: 'revenue_week',
+    keywords: ['doanhthutuannay', 'doanhthutuan', 'doanhsotuannay', 'doanhsotuan', 'tuannay'],
+    priority: 60,
+  },
+  {
+    name: 'revenue_month',
+    keywords: ['doanhthuthangnay', 'doanhthuthang', 'doanhsothangnay', 'doanhsothang', 'thangnay'],
+    priority: 60,
+  },
   {
     name: 'revenue_today',
     keywords: ['doanhthuhomnay', 'doanhthu', 'tongthu', 'doanhsohomnay', 'doanhso'],
@@ -102,7 +115,9 @@ export const SUGGESTIONS: Record<string, string[]> = {
   view_menu: ['Món bán chạy', 'Tìm món Tôm hùm', 'Doanh thu hôm nay'],
   top_items: ['Xem menu', 'Doanh thu hôm nay', 'Còn bàn trống không?'],
   check_table: ['Xem menu', 'Doanh thu hôm nay', 'Giờ mở cửa'],
-  revenue_today: ['Thống kê đơn hàng', 'Món bán chạy', 'Còn bàn trống không?'],
+  revenue_today: ['Doanh thu tuần này', 'Doanh thu tháng này', 'Thống kê đơn hàng', 'Món bán chạy'],
+  revenue_week: ['Doanh thu hôm nay', 'Doanh thu tháng này', 'Thống kê đơn hàng', 'Món bán chạy'],
+  revenue_month: ['Doanh thu hôm nay', 'Doanh thu tuần này', 'Thống kê đơn hàng', 'Món bán chạy'],
   order_stats: ['Doanh thu hôm nay', 'Xem menu', 'Còn bàn trống không?'],
   check_order_by_code: ['Doanh thu hôm nay', 'Thống kê đơn hàng'],
   restaurant_info: ['Xem menu', 'Còn bàn trống không?', 'Doanh thu hôm nay'],

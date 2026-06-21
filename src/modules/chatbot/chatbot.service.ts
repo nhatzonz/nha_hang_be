@@ -110,7 +110,7 @@ export class ChatbotService {
         '• Kiểm tra bàn trống\n' +
         '• Tra cứu đơn hàng (nhập mã ORD-YYYYMMDD-NNN)\n' +
         '• Gợi ý món cho khách theo lịch sử (VD: "Gợi ý món cho khách 0901234567")\n' +
-        '• Xem doanh thu hôm nay / món bán chạy\n' +
+        '• Xem doanh thu hôm nay / tuần này / tháng này, món bán chạy\n' +
         '• Hỏi thông tin nhà hàng (giờ mở cửa, địa chỉ)',
       suggestions: SUGGESTIONS.help,
     };
@@ -197,8 +197,16 @@ export class ChatbotService {
     };
   }
 
-  private async handleRevenueToday(): Promise<ChatResponse> {
-    const overview = await this.statsService.getOverview('today');
+  private async handleRevenue(
+    period: 'today' | 'week' | 'month',
+  ): Promise<ChatResponse> {
+    const META = {
+      today: { intent: 'revenue_today', label: 'hôm nay', compare: 'so với hôm qua' },
+      week: { intent: 'revenue_week', label: 'tuần này (7 ngày gần đây)', compare: 'so với tuần trước' },
+      month: { intent: 'revenue_month', label: 'tháng này (30 ngày gần đây)', compare: 'so với tháng trước' },
+    }[period];
+
+    const overview = await this.statsService.getOverview(period);
     const revenue = overview.revenue.value;
     const orders = overview.orders.value;
     const change = overview.revenue.change;
@@ -206,17 +214,17 @@ export class ChatbotService {
     let changeText = '';
     if (change !== 0 && Math.abs(change) !== 100) {
       const sign = change > 0 ? '📈 tăng' : '📉 giảm';
-      changeText = ` (${sign} ${Math.abs(change).toFixed(1)}% so với hôm qua)`;
+      changeText = ` (${sign} ${Math.abs(change).toFixed(1)}% ${META.compare})`;
     }
 
     return {
-      intent: 'revenue_today',
+      intent: META.intent,
       reply:
-        `💰 Doanh thu hôm nay: ${revenue.toLocaleString('vi-VN')}đ${changeText}\n` +
+        `💰 Doanh thu ${META.label}: ${revenue.toLocaleString('vi-VN')}đ${changeText}\n` +
         `📦 Số đơn hoàn thành: ${orders}\n` +
         `💳 Giá trị đơn TB: ${Math.round(overview.avgOrderValue.value).toLocaleString('vi-VN')}đ`,
       data: { overview },
-      suggestions: SUGGESTIONS.revenue_today,
+      suggestions: SUGGESTIONS[META.intent],
     };
   }
 
@@ -507,7 +515,13 @@ export class ChatbotService {
           response = await this.handleCheckTable();
           break;
         case 'revenue_today':
-          response = await this.handleRevenueToday();
+          response = await this.handleRevenue('today');
+          break;
+        case 'revenue_week':
+          response = await this.handleRevenue('week');
+          break;
+        case 'revenue_month':
+          response = await this.handleRevenue('month');
           break;
         case 'order_stats':
           response = await this.handleOrderStats();
