@@ -23,6 +23,16 @@ async def list_menu_items(only_available: bool = True) -> list[dict]:
     return await db.fetch_all(sql)
 
 
+async def list_unembedded_items(only_available: bool = True) -> list[dict]:
+    """Các món có trong menu nhưng CHƯA có embedding (để đồng bộ tăng dần)."""
+    sql = _MENU_SELECT + " LEFT JOIN menu_embeddings e ON e.menu_item_id = m.id"
+    sql += " WHERE e.menu_item_id IS NULL"
+    if only_available:
+        sql += " AND m.is_available = 1"
+    sql += " ORDER BY m.id"
+    return await db.fetch_all(sql)
+
+
 def build_source_text(item: dict) -> str:
     """Ghép text mô tả món để embedding (tên + danh mục + giá + mô tả)."""
     parts = [f"Tên món: {item['name']}"]
